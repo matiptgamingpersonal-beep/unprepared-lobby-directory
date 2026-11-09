@@ -8,4 +8,12 @@ Run one Gunicorn worker with four threads:
 
 Health endpoint: /health. API: /v1/rooms. Records expire after 45 seconds.
 
-DIRECTORY_TRUST_PROXY=1 is only for deployment behind the trusted Render proxy. This service lists game hosts; it does not relay game traffic or traverse NAT.
+The directory uses DIRECTORY_TRUST_PROXY=1 and DIRECTORY_PROXY_MODE=render only behind Render's trusted Cloudflare ingress.
+
+## Optional game relay
+
+A separate single-instance service runs relay_app.py with websockets==16.0 from relay-requirements.txt. It accepts outbound WSS on /relay and reports readiness at /health. Set RELAY_PROXY_MODE=render only behind Render ingress. Game passwords and admission stay with the authoritative game host.
+
+The relay transports ephemeral ENet datagrams and generated or enabled game media; it never writes packet contents. TLS terminates at the hosting edge, not end-to-end between players. Connection and queue quotas close overloaded peers instead of accumulating unbounded packets. See source constants for limits.
+
+Both services are prototypes using one in-memory instance each; restarting the relay closes its rooms. Free hosting has shared time/traffic limits. Direct UDP/LAN remains available in the game.

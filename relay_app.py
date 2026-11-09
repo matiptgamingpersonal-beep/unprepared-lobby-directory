@@ -184,7 +184,7 @@ class RelayService:
             if "%" in raw:
                 raise ValueError("Scoped address")
             return str(ipaddress.ip_address(raw))
-        except (ValueError, TypeError, KeyError, IndexError):
+        except (ValueError, TypeError, LookupError):
             raise RelayError("invalid_source") from None
 
     def _allow_connection(self, source):
