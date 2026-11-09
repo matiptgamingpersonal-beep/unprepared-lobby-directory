@@ -45,11 +45,14 @@ def _object(pairs):
 
 
 class Application:
-    def __init__(self, clock=time.monotonic, max_rooms=1000, max_rate_keys=4096, trust_proxy=None):
+    def __init__(self, clock=time.monotonic, max_rooms=1000, max_rate_keys=4096, trust_proxy=None, proxy_mode=None):
         self.clock = clock
         self.max_rooms = max_rooms
         self.max_rate_keys = max_rate_keys
         self.trust_proxy = os.environ.get("DIRECTORY_TRUST_PROXY") == "1" if trust_proxy is None else trust_proxy
+        self.proxy_mode = os.environ.get("DIRECTORY_PROXY_MODE", "append") if proxy_mode is None else proxy_mode
+        if self.proxy_mode not in {"append", "render"}:
+            raise ValueError("Unsupported proxy mode")
         self.rooms = {}
         self.idempotency = {}
         self.rate_windows = {}
@@ -74,8 +77,10 @@ class Application:
     def _address(self, environ):
         raw = environ.get("REMOTE_ADDR", "")
         if self.trust_proxy and environ.get("HTTP_X_FORWARDED_FOR"):
-            # With a trusted edge appending its observed client IP, ignore spoofed prefixes.
-            raw = environ["HTTP_X_FORWARDED_FOR"].split(",")[-1].strip()
+            # Render overwrites the first entry with the observed client address;
+            # its internal hops can follow it. Generic append-only proxies use last.
+            index = 0 if self.proxy_mode == "render" else -1
+            raw = environ["HTTP_X_FORWARDED_FOR"].split(",")[index].strip()
         try:
             if "%" in raw:
                 raise ValueError("Scoped address")
