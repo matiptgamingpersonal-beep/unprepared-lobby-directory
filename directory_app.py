@@ -76,11 +76,13 @@ class Application:
 
     def _address(self, environ):
         raw = environ.get("REMOTE_ADDR", "")
-        if self.trust_proxy and environ.get("HTTP_X_FORWARDED_FOR"):
-            # Render overwrites the first entry with the observed client address;
-            # its internal hops can follow it. Generic append-only proxies use last.
-            index = 0 if self.proxy_mode == "render" else -1
-            raw = environ["HTTP_X_FORWARDED_FOR"].split(",")[index].strip()
+        if self.trust_proxy and self.proxy_mode == "render":
+            # Render's public ingress passes through Cloudflare, which sets this
+            # single address. XFF can retain caller-supplied prefixes and internal
+            # hops, so do not use it for this provider. Missing header fails closed.
+            raw = environ.get("HTTP_CF_CONNECTING_IP", "").strip()
+        elif self.trust_proxy and environ.get("HTTP_X_FORWARDED_FOR"):
+            raw = environ["HTTP_X_FORWARDED_FOR"].split(",")[-1].strip()
         try:
             if "%" in raw:
                 raise ValueError("Scoped address")
