@@ -128,7 +128,7 @@ class Application:
             data = json.loads(raw.decode("utf-8"), parse_constant=_no_constants, object_pairs_hook=_object)
         except (ValueError, UnicodeError, RecursionError):
             raise ApiError(400, "JSON inválido.") from None
-        if not isinstance(data, dict) or not FIELDS.issubset(data) or set(data) - FIELDS - {"allow_late_join"}:
+        if not isinstance(data, dict) or not FIELDS.issubset(data) or set(data) - FIELDS - {"allow_late_join", "relay_room"}:
             raise ApiError(400, "Metadatos de sala inválidos.")
         name = data["name"]
         if not isinstance(name, str) or not 1 <= len(name.strip()) <= 60 or any(ord(c) < 32 for c in name):
@@ -142,6 +142,9 @@ class Application:
         if type(data["has_password"]) is not bool or not isinstance(data["phase"], str) or data["phase"] not in PHASES:
             raise ApiError(400, "Estado de sala inválido.")
         allow_late_join = data.get("allow_late_join", False)
+        relay_room = data.get("relay_room", "")
+        if not isinstance(relay_room,str) or (relay_room and not re.fullmatch(r"[0-9a-f]{32}",relay_room)):
+            raise ApiError(400,"Código de enlace inválido.")
         if type(allow_late_join) is not bool:
             raise ApiError(400, "Opción de incorporaciones inválida.")
         return dict(data, name=name.strip(), allow_late_join=allow_late_join)
